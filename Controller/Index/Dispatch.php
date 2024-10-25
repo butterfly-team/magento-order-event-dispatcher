@@ -36,7 +36,7 @@ class Dispatch extends Action
         $providedSecret = $this->getRequest()->getParam('secret');
 
         // Retrieve the secret key from the Magento configuration
-        $configSecret = $this->scopeConfig->getValue('buterfly/order_event_dispatcher/secret_key', \Magento\Store\Model\ScopeInterface::SCOPE_STORE);
+        $configSecret = $this->scopeConfig->getValue('butterfly/order_event_dispatcher/secret_key', \Magento\Store\Model\ScopeInterface::SCOPE_STORE);
 
         // Check if the provided secret matches the configured secret
         if (!$providedSecret || $providedSecret !== $configSecret) {
