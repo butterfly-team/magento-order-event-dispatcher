@@ -7,6 +7,7 @@ use Magento\Framework\Event\ManagerInterface;
 use Magento\Sales\Model\OrderFactory;
 use Magento\Framework\Controller\Result\JsonFactory;
 use Magento\Framework\App\Config\ScopeConfigInterface;
+use Magento\Sales\Model\Order\Email\Sender\OrderSender;
 
 class Dispatch extends Action
 {
@@ -14,18 +15,22 @@ class Dispatch extends Action
     protected $orderFactory;
     protected $resultJsonFactory;
     protected $scopeConfig;
+    protected $orderSender;
 
     public function __construct(
         Context $context,
         ManagerInterface $eventManager,
         OrderFactory $orderFactory,
         JsonFactory $resultJsonFactory,
-        ScopeConfigInterface $scopeConfig
+        ScopeConfigInterface $scopeConfig,
+        OrderSender $orderSender
     ) {
         $this->eventManager = $eventManager;
         $this->orderFactory = $orderFactory;
         $this->resultJsonFactory = $resultJsonFactory;
         $this->scopeConfig = $scopeConfig;
+        $this->orderSender = $orderSender;
+
         parent::__construct($context);
     }
 
@@ -51,6 +56,12 @@ class Dispatch extends Action
                 $this->eventManager->dispatch('sales_order_place_after', ['order' => $order]);
                 $this->eventManager->dispatch('checkout_submit_all_after', ['order' => $order]);
                 $this->eventManager->dispatch('sales_order_save_after', ['order' => $order]);
+
+                try {
+                    $this->orderSender->send($order);
+                } catch (\Exception $e) {
+                    return $result->setData(['success' => false, 'message' => "Error sending order email: " . $e->getMessage()]);
+                }
 
                 return $result->setData(['success' => true, 'message' => "Events dispatched for Order ID: " . $orderId]);
             } else {
