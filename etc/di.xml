@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<!-- di.xml -->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+
+    <type name="Butterfly\OrderEventDispatcher\Controller\Index\Dispatch">
+        <arguments>
+            <argument name="context" xsi:type="object">Magento\Framework\App\Action\Context</argument>
+            <argument name="eventManager" xsi:type="object">Magento\Framework\Event\ManagerInterface</argument>
+            <argument name="orderFactory" xsi:type="object">Magento\Sales\Model\OrderFactory</argument>
+            <argument name="resultJsonFactory" xsi:type="object">Magento\Framework\Controller\Result\JsonFactory</argument>
+            <argument name="scopeConfig" xsi:type="object">Magento\Framework\App\Config\ScopeConfigInterface</argument>
+            <argument name="orderSender" xsi:type="object">Magento\Sales\Model\Order\Email\Sender\OrderSender</argument>
+        </arguments>
+    </type>
+
+</config>
