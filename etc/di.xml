@@ -12,6 +12,7 @@
             <argument name="stockManagement" xsi:type="object">Magento\CatalogInventory\Api\StockManagementInterface</argument>
             <argument name="stockRegistryProvider" xsi:type="object">Magento\CatalogInventory\Model\Spi\StockRegistryProviderInterface</argument>
             <argument name="subtractQuoteInventoryObserver" xsi:type="object">Magento\CatalogInventory\Observer\SubtractQuoteInventoryObserver</argument>
+            <argument name="storeManager" xsi:type="object">Magento\Store\Model\StoreManagerInterface</argument>
         </arguments>
     </type>
 </config>
