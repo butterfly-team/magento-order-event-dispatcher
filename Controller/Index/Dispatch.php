@@ -8,6 +8,9 @@ use Magento\Sales\Model\OrderFactory;
 use Magento\Framework\Controller\Result\JsonFactory;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Sales\Model\Order\Email\Sender\OrderSender;
+use Magento\CatalogInventory\Api\StockManagementInterface;
+use Magento\CatalogInventory\Model\Spi\StockRegistryProviderInterface;
+use Magento\CatalogInventory\Observer\SubtractQuoteInventoryObserver;
 
 class Dispatch extends Action
 {
@@ -16,6 +19,9 @@ class Dispatch extends Action
     protected $resultJsonFactory;
     protected $scopeConfig;
     protected $orderSender;
+    protected $stockManagement;
+    protected $stockRegistryProvider;
+    protected $subtractQuoteInventoryObserver;
 
     public function __construct(
         Context $context,
@@ -23,14 +29,19 @@ class Dispatch extends Action
         OrderFactory $orderFactory,
         JsonFactory $resultJsonFactory,
         ScopeConfigInterface $scopeConfig,
-        OrderSender $orderSender
+        OrderSender $orderSender,
+        StockManagementInterface $stockManagement,
+        StockRegistryProviderInterface $stockRegistryProvider,
+        SubtractQuoteInventoryObserver $subtractQuoteInventoryObserver
     ) {
         $this->eventManager = $eventManager;
         $this->orderFactory = $orderFactory;
         $this->resultJsonFactory = $resultJsonFactory;
         $this->scopeConfig = $scopeConfig;
         $this->orderSender = $orderSender;
-
+        $this->stockManagement = $stockManagement;
+        $this->stockRegistryProvider = $stockRegistryProvider;
+        $this->subtractQuoteInventoryObserver = $subtractQuoteInventoryObserver;
         parent::__construct($context);
     }
 
@@ -41,7 +52,10 @@ class Dispatch extends Action
         $providedSecret = $this->getRequest()->getParam('secret');
 
         // Retrieve the secret key from the Magento configuration
-        $configSecret = $this->scopeConfig->getValue('butterfly/order_event_dispatcher/secret_key', \Magento\Store\Model\ScopeInterface::SCOPE_STORE);
+        $configSecret = $this->scopeConfig->getValue(
+            'butterfly/order_event_dispatcher/secret_key',
+            \Magento\Store\Model\ScopeInterface::SCOPE_STORE
+        );
 
         // Check if the provided secret matches the configured secret
         if (!$providedSecret || $providedSecret !== $configSecret) {
@@ -50,20 +64,46 @@ class Dispatch extends Action
 
         if ($orderId) {
             $order = $this->orderFactory->create()->load($orderId);
-
+            
             if ($order->getId()) {
-                // Dispatch events
-                $this->eventManager->dispatch('sales_order_place_after', ['order' => $order]);
-                $this->eventManager->dispatch('checkout_submit_all_after', ['order' => $order]);
-                $this->eventManager->dispatch('sales_order_save_after', ['order' => $order]);
-
                 try {
-                    $this->orderSender->send($order);
-                } catch (\Exception $e) {
-                    return $result->setData(['success' => false, 'message' => "Error sending order email: " . $e->getMessage()]);
-                }
+                    // Update inventory for each order item
+                    foreach ($order->getAllItems() as $orderItem) {
+                        $productId = $orderItem->getProductId();
+                        $qty = $orderItem->getQtyOrdered();
+                        $stockItem = $this->stockRegistryProvider->getStockItem($productId, $order->getStore()->getWebsiteId());
+                        
+                        if ($stockItem->getId()) {
+                            // Deduct the quantity from stock
+                            $this->stockManagement->registerProductsSale(
+                                [$productId => $qty]
+                            );
+                            
+                            // Update stock status
+                            $stockItem->setQty($stockItem->getQty() - $qty);
+                            $stockItem->save();
+                        }
+                    }
 
-                return $result->setData(['success' => true, 'message' => "Events dispatched for Order ID: " . $orderId]);
+                    // Dispatch standard Magento events
+                    $this->eventManager->dispatch('sales_order_place_after', ['order' => $order]);
+                    $this->eventManager->dispatch('checkout_submit_all_after', ['order' => $order]);
+                    $this->eventManager->dispatch('sales_order_save_after', ['order' => $order]);
+
+                    // Send order email
+                    $this->orderSender->send($order);
+
+                    return $result->setData([
+                        'success' => true,
+                        'message' => "Events dispatched and inventory updated for Order ID: " . $orderId
+                    ]);
+
+                } catch (\Exception $e) {
+                    return $result->setData([
+                        'success' => false,
+                        'message' => "Error processing order: " . $e->getMessage()
+                    ]);
+                }
             } else {
                 return $result->setData(['success' => false, 'message' => "Order not found."]);
             }
