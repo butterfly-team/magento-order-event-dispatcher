@@ -11,6 +11,7 @@ use Magento\Sales\Model\Order\Email\Sender\OrderSender;
 use Magento\CatalogInventory\Api\StockManagementInterface;
 use Magento\CatalogInventory\Model\Spi\StockRegistryProviderInterface;
 use Magento\CatalogInventory\Observer\SubtractQuoteInventoryObserver;
+use Magento\Store\Model\StoreManagerInterface;
 
 class Dispatch extends Action
 {
@@ -22,6 +23,7 @@ class Dispatch extends Action
     protected $stockManagement;
     protected $stockRegistryProvider;
     protected $subtractQuoteInventoryObserver;
+    protected $storeManager;
 
     public function __construct(
         Context $context,
@@ -32,7 +34,8 @@ class Dispatch extends Action
         OrderSender $orderSender,
         StockManagementInterface $stockManagement,
         StockRegistryProviderInterface $stockRegistryProvider,
-        SubtractQuoteInventoryObserver $subtractQuoteInventoryObserver
+        SubtractQuoteInventoryObserver $subtractQuoteInventoryObserver,
+        StoreManagerInterface $storeManager
     ) {
         $this->eventManager = $eventManager;
         $this->orderFactory = $orderFactory;
@@ -42,6 +45,7 @@ class Dispatch extends Action
         $this->stockManagement = $stockManagement;
         $this->stockRegistryProvider = $stockRegistryProvider;
         $this->subtractQuoteInventoryObserver = $subtractQuoteInventoryObserver;
+        $this->storeManager = $storeManager;
         parent::__construct($context);
     }
 
@@ -67,21 +71,32 @@ class Dispatch extends Action
             
             if ($order->getId()) {
                 try {
+                    // Get website ID from the order's store
+                    $websiteId = $this->storeManager->getStore($order->getStoreId())->getWebsiteId();
+
                     // Update inventory for each order item
                     foreach ($order->getAllItems() as $orderItem) {
+                        if ($orderItem->getProductType() == 'configurable') {
+                            continue; // Skip configurable products as we'll handle their simple products
+                        }
+
                         $productId = $orderItem->getProductId();
                         $qty = $orderItem->getQtyOrdered();
-                        $stockItem = $this->stockRegistryProvider->getStockItem($productId, $order->getStore()->getWebsiteId());
-                        
-                        if ($stockItem->getId()) {
-                            // Deduct the quantity from stock
-                            $this->stockManagement->registerProductsSale(
-                                [$productId => $qty]
-                            );
+
+                        try {
+                            // Get stock item with proper website ID
+                            $stockItem = $this->stockRegistryProvider->getStockItem($productId, $websiteId);
                             
-                            // Update stock status
-                            $stockItem->setQty($stockItem->getQty() - $qty);
-                            $stockItem->save();
+                            if ($stockItem->getId()) {
+                                // Register the sale with proper website ID
+                                $this->stockManagement->registerProductsSale(
+                                    [$stockItem->getProductId() => $qty],
+                                    $websiteId
+                                );
+                            }
+                        } catch (\Exception $e) {
+                            // Log the error but continue processing other items
+                            $this->_logger->error('Error updating inventory for product ID ' . $productId . ': ' . $e->getMessage());
                         }
                     }
 
