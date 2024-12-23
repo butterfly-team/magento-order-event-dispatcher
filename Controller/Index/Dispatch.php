@@ -88,11 +88,12 @@ class Dispatch extends Action
                             $stockItem = $this->stockRegistryProvider->getStockItem($productId, $websiteId);
                             
                             if ($stockItem->getId()) {
-                                // Register the sale with proper website ID
+                                // Register the sale AND deduct from stock
                                 $this->stockManagement->registerProductsSale(
                                     [$stockItem->getProductId() => $qty],
                                     $websiteId
                                 );
+                                $this->stockManagement->deductFromStock($productId, $qty, $websiteId);
                             }
                         } catch (\Exception $e) {
                             // Log the error but continue processing other items
