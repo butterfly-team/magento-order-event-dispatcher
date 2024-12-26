@@ -71,36 +71,6 @@ class Dispatch extends Action
             
             if ($order->getId()) {
                 try {
-                    // Get website ID from the order's store
-                    $websiteId = $this->storeManager->getStore($order->getStoreId())->getWebsiteId();
-
-                    // Update inventory for each order item
-                    foreach ($order->getAllItems() as $orderItem) {
-                        if ($orderItem->getProductType() == 'configurable') {
-                            continue; // Skip configurable products as we'll handle their simple products
-                        }
-
-                        $productId = $orderItem->getProductId();
-                        $qty = $orderItem->getQtyOrdered();
-
-                        try {
-                            // Get stock item with proper website ID
-                            $stockItem = $this->stockRegistryProvider->getStockItem($productId, $websiteId);
-                            
-                            if ($stockItem->getId()) {
-                                // Register the sale AND deduct from stock
-                                $this->stockManagement->registerProductsSale(
-                                    [$stockItem->getProductId() => $qty],
-                                    $websiteId
-                                );
-                                $this->stockManagement->deductFromStock($productId, $qty, $websiteId);
-                            }
-                        } catch (\Exception $e) {
-                            // Log the error but continue processing other items
-                            $this->_logger->error('Error updating inventory for product ID ' . $productId . ': ' . $e->getMessage());
-                        }
-                    }
-
                     // Dispatch standard Magento events
                     $this->eventManager->dispatch('sales_order_place_after', ['order' => $order]);
                     $this->eventManager->dispatch('checkout_submit_all_after', ['order' => $order]);
