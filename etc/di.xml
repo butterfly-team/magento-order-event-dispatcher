@@ -5,6 +5,7 @@
         <arguments>
             <argument name="context" xsi:type="object">Magento\Framework\App\Action\Context</argument>
             <argument name="eventManager" xsi:type="object">Magento\Framework\Event\ManagerInterface</argument>
+            <argument name="orderRepository" xsi:type="object">Magento\Sales\Api\OrderRepositoryInterface</argument>
             <argument name="orderFactory" xsi:type="object">Magento\Sales\Model\OrderFactory</argument>
             <argument name="resultJsonFactory" xsi:type="object">Magento\Framework\Controller\Result\JsonFactory</argument>
             <argument name="scopeConfig" xsi:type="object">Magento\Framework\App\Config\ScopeConfigInterface</argument>
