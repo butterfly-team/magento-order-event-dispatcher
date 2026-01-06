@@ -12,10 +12,13 @@ use Magento\CatalogInventory\Api\StockManagementInterface;
 use Magento\CatalogInventory\Model\Spi\StockRegistryProviderInterface;
 use Magento\CatalogInventory\Observer\SubtractQuoteInventoryObserver;
 use Magento\Store\Model\StoreManagerInterface;
+use Magento\Sales\Api\OrderRepositoryInterface;
+
 
 class Dispatch extends Action
 {
     protected $eventManager;
+    protected $orderRepository;
     protected $orderFactory;
     protected $resultJsonFactory;
     protected $scopeConfig;
@@ -28,6 +31,7 @@ class Dispatch extends Action
     public function __construct(
         Context $context,
         ManagerInterface $eventManager,
+        OrderRepositoryInterface $orderRepository,
         OrderFactory $orderFactory,
         JsonFactory $resultJsonFactory,
         ScopeConfigInterface $scopeConfig,
@@ -38,6 +42,7 @@ class Dispatch extends Action
         StoreManagerInterface $storeManager
     ) {
         $this->eventManager = $eventManager;
+        $this->orderRepository = $orderRepository;
         $this->orderFactory = $orderFactory;
         $this->resultJsonFactory = $resultJsonFactory;
         $this->scopeConfig = $scopeConfig;
@@ -67,7 +72,8 @@ class Dispatch extends Action
         }
 
         if ($orderId) {
-            $order = $this->orderFactory->create()->load($orderId);
+            //$order = $this->orderFactory->create()->load($orderId);
+            $order = $this->orderRepository->get($orderId);
             
             if ($order->getId()) {
                 try {
