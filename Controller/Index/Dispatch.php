@@ -78,9 +78,11 @@ class Dispatch extends Action
             if ($order->getId()) {
                 try {
                     // Dispatch standard Magento events
-                    $this->eventManager->dispatch('sales_order_place_after', ['order' => $order]);
-                    $this->eventManager->dispatch('checkout_submit_all_after', ['order' => $order]);
-                    $this->eventManager->dispatch('sales_order_save_after', ['order' => $order]);
+                    $eventData = ['order' => $order, 'data_object' => $order, 'object' => $order];                    
+                    
+                    $this->eventManager->dispatch('sales_order_place_after', $eventData);
+                    $this->eventManager->dispatch('checkout_submit_all_after', $eventData);
+                    $this->eventManager->dispatch('sales_order_save_after', $eventData);
 
                     // Send order email
                     $this->orderSender->send($order);
