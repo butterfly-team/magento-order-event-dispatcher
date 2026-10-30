@@ -78,6 +78,12 @@ http://your-magento-site.com/order_event_dispatcher/index/dispatch?order_id=1&se
 
 You can customize which events are triggered in the `Dispatch.php` controller file.
 
+## Idempotency
+
+Each order is dispatched once. The module adds `sales_order.butterfly_dispatched_at`; a request sets it atomically before firing the events, and a repeated request for the same order returns `success: true` with `already_dispatched: true` without firing events or sending the order email again. If dispatching throws, the flag is cleared so the caller can retry.
+
+`setup:upgrade` backfills the flag with `created_at` for existing orders, so they are not dispatched again by a retry job.
+
 ## Troubleshooting
 
 - Ensure the module is enabled:

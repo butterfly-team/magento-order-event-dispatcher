@@ -13,6 +13,7 @@ use Magento\CatalogInventory\Model\Spi\StockRegistryProviderInterface;
 use Magento\CatalogInventory\Observer\SubtractQuoteInventoryObserver;
 use Magento\Store\Model\StoreManagerInterface;
 use Magento\Sales\Api\OrderRepositoryInterface;
+use Magento\Framework\App\ResourceConnection;
 
 
 class Dispatch extends Action
@@ -27,6 +28,7 @@ class Dispatch extends Action
     protected $stockRegistryProvider;
     protected $subtractQuoteInventoryObserver;
     protected $storeManager;
+    protected $resourceConnection;
 
     public function __construct(
         Context $context,
@@ -39,7 +41,8 @@ class Dispatch extends Action
         StockManagementInterface $stockManagement,
         StockRegistryProviderInterface $stockRegistryProvider,
         SubtractQuoteInventoryObserver $subtractQuoteInventoryObserver,
-        StoreManagerInterface $storeManager
+        StoreManagerInterface $storeManager,
+        ResourceConnection $resourceConnection
     ) {
         $this->eventManager = $eventManager;
         $this->orderRepository = $orderRepository;
@@ -51,6 +54,7 @@ class Dispatch extends Action
         $this->stockRegistryProvider = $stockRegistryProvider;
         $this->subtractQuoteInventoryObserver = $subtractQuoteInventoryObserver;
         $this->storeManager = $storeManager;
+        $this->resourceConnection = $resourceConnection;
         parent::__construct($context);
     }
 
@@ -72,9 +76,21 @@ class Dispatch extends Action
         }
 
         if ($orderId) {
-            //$order = $this->orderFactory->create()->load($orderId);
+            // Claim before loading the order, so an observer that saves it writes the claim back instead of NULL.
+            if (!$this->claim($orderId)) {
+                if (!$this->orderExists($orderId)) {
+                    return $result->setData(['success' => false, 'message' => "Order not found."]);
+                }
+
+                return $result->setData([
+                    'success' => true,
+                    'already_dispatched' => true,
+                    'message' => "Events were already dispatched for Order ID: " . $orderId
+                ]);
+            }
+
             $order = $this->orderRepository->get($orderId);
-            
+
             if ($order->getId()) {
                 try {
                     // Dispatch standard Magento events
@@ -93,6 +109,8 @@ class Dispatch extends Action
                     ]);
 
                 } catch (\Exception $e) {
+                    $this->release($orderId);
+
                     return $result->setData([
                         'success' => false,
                         'message' => "Error processing order: " . $e->getMessage()
@@ -104,5 +122,40 @@ class Dispatch extends Action
         } else {
             return $result->setData(['success' => false, 'message' => "Order ID is required."]);
         }
+    }
+
+    /**
+     * Only the request that flips butterfly_dispatched_at from NULL dispatches, so a
+     * retry that races a slow first call cannot send the events or the email twice.
+     */
+    private function claim($orderId)
+    {
+        $connection = $this->resourceConnection->getConnection();
+
+        return $connection->update(
+            $this->resourceConnection->getTableName('sales_order'),
+            ['butterfly_dispatched_at' => new \Zend_Db_Expr('NOW()')],
+            ['entity_id = ?' => (int) $orderId, 'butterfly_dispatched_at IS NULL']
+        ) > 0;
+    }
+
+    private function release($orderId)
+    {
+        $this->resourceConnection->getConnection()->update(
+            $this->resourceConnection->getTableName('sales_order'),
+            ['butterfly_dispatched_at' => null],
+            ['entity_id = ?' => (int) $orderId]
+        );
+    }
+
+    private function orderExists($orderId)
+    {
+        $connection = $this->resourceConnection->getConnection();
+
+        return (bool) $connection->fetchOne(
+            $connection->select()
+                ->from($this->resourceConnection->getTableName('sales_order'), 'entity_id')
+                ->where('entity_id = ?', (int) $orderId)
+        );
     }
 }
