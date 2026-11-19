@@ -122,3 +122,27 @@ namespace Magento\Framework\Component {
         }
     }
 }
+
+namespace Magento\Framework\Setup {
+    if (!interface_exists(ModuleDataSetupInterface::class)) {
+        interface ModuleDataSetupInterface
+        {
+            public function getConnection();
+            public function getTable($tableName);
+        }
+    }
+}
+
+namespace Magento\Framework\Setup\Patch {
+    if (!interface_exists(PatchInterface::class)) {
+        interface PatchInterface
+        {
+            public static function getDependencies();
+            public function getAliases();
+            public function apply();
+        }
+    }
+    if (!interface_exists(DataPatchInterface::class)) {
+        interface DataPatchInterface extends PatchInterface {}
+    }
+}
