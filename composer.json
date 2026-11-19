@@ -11,5 +11,16 @@
     "psr-4": {
       "Butterfly\\OrderEventDispatcher\\": ""
     }
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^9.6 || ^10.5"
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Butterfly\\OrderEventDispatcher\\Test\\": "Test/"
+    }
+  },
+  "scripts": {
+    "test": "@php -d auto_prepend_file=Test/Unit/stubs.php vendor/bin/phpunit"
   }
 }

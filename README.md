@@ -95,3 +95,12 @@ Each order is dispatched once. The module adds `sales_order.butterfly_dispatched
 ## License
 This module is open-source and free to use. Feel free to modify it to suit your needs.
 
+
+## Tests
+
+```bash
+composer install
+composer test
+```
+
+The unit tests run without a Magento install; `Test/Unit/stubs.php` stands in for the Magento classes the controller touches.
