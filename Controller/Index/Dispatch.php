@@ -108,7 +108,7 @@ class Dispatch extends Action
                         'message' => "Events dispatched and inventory updated for Order ID: " . $orderId
                     ]);
 
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     $this->release($orderId);
 
                     return $result->setData([
