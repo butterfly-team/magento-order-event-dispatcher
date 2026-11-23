@@ -2,7 +2,7 @@
   "name": "butterfly-team/magento-order-event-dispatcher",
   "description": "This Magento 2 module allows you to trigger order-related events for an existing order via a URL. This is useful when you manually create orders in the Magento database and want to trigger events for processing workflows such as inventory updates, email notifications, and more.",
   "type": "magento2-module",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "license": "GPL-3.0-only",
   "autoload": {
     "files": [
@@ -11,5 +11,16 @@
     "psr-4": {
       "Butterfly\\OrderEventDispatcher\\": ""
     }
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^9.6 || ^10.5"
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Butterfly\\OrderEventDispatcher\\Test\\": "Test/"
+    }
+  },
+  "scripts": {
+    "test": "@php -d auto_prepend_file=Test/Unit/stubs.php vendor/bin/phpunit"
   }
 }
